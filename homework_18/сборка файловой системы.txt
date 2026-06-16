@@ -1,0 +1,28 @@
+nano init.c
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void)
+{
+        printf("Hello!\n");
+        sleep(5);
+}
+arm-linux-gnueabihf-gcc -static init.c -o init
+echo init | cpio -o -H newc | gzip > initramfs.cpio.gz
+QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -initrd initramfs.cpio.gz -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0" -nographic
+
+
+сборку делал при помощи busybox 1.38.0
+
+ARCH=arm make defconfig
+make menuconfig			в конфигурации нужно отключить traffic control иначе не собирается
+make -j6
+make install
+cd _install/
+file busybox
+cd _install/
+find . | cpio -o -H newc | gzip > initramfs.cpio.gz
+ll
+cd initramfs.cpio.gz /home/a123/KERNEL/test/
+cd /home/a123/KERNEL/test/
+QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -initrd initramfs.cpio.gz -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0 rdinit=bin/ash" -nographic

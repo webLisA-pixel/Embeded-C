@@ -1,0 +1,29 @@
+сборка ядра осуществлялась на версии 7.0.11
+cp linux-7.0.11.tar.xz
+tar -xvf linux-7.0.11.tar.xz
+cd linux-7.0.11
+make mrproper
+make menuconfig				//использовал дефолтные конфигурации
+apt install flux
+make menuconfig
+apt install bison
+make menuconfig
+make bzImage modules modules_install install
+apt install libelf-dev
+make bzImage modules modules_install install
+apt install libssl-dev
+make bzImage modules modules_install install
+
+сборка ядра и проверка на эмуляторе:
+ARCH=arm make defconfig
+ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j6 zImage
+cd arch/arm/boot/
+mkdir /home/a123/KERNEL/test
+cp zImage /home/a123/KERNEL/test/
+cd ..
+cd linux-7.0.11/
+ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j6 dtbs
+cd arch/arm/boot/dts/.
+cp vexpress-v2p-ca9.dtb /home/a123/KERNEL/test/
+cd /home/a123/KERNEL/test/
+QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0" -nographic

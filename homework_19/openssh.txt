@@ -1,0 +1,24 @@
+использовались библиотеки zlib-1.3.2 openssl-10.3
+
+cd /home/a123/KERNEL/test/zlib-1.3.2/
+./configure --prefix=$PWD/_install --static
+make CC=arm-linux-gnueabihf-gcc
+file trees.o
+make install
+cd ..
+cd openssh-10.3p1
+./configure --host=arm-linux-gnueabihf --with-zlib=/home/a123/KERNEL/test/zlib-1.3.2/_install --prefix $PWD/_install
+cd ..
+cd openssl-4.0.1
+make clean
+./Configure linux-armv4 --cross-compile-prefix=arm-linux-gnueabihf- --prefix=$PWD/_install
+make
+make install
+cd ../openssh-10.3p1
+./configure --host=arm-linux-gnueabihf --with-zlib=/home/a123/KERNEL/test/zlib-1.3.2/_install --with-ssl-dir=/home/a123/KERNEL/test/openssl-4.0.1/_install --prefix $PWD/_install
+make
+cd _install/
+cp -r * /home/a123/KERNEL/test/busybox-1.38.0/_install/
+cd /home/a123/KERNEL/test/busybox-1.38.0/_install/
+find . | cpio -o -H newc | gzip > initramfs.cpio.gz
+cp initramfs.cpio.gz /home/a123/KERNEL/test/
