@@ -17,6 +17,7 @@ int main()
 		exit(1);
 	}
 	memset(packet_snd, 0 , PACKET_SIZE);
+	//создание структуры заголовков пакета
 	struct ether_header *ethheader_snd = (struct ether_header*)packet_snd;
 	struct iphdr *ipheader_snd = (struct iphdr *)(packet_snd+sizeof(struct ether_header));
 	struct udphdr *udpheader_snd = (struct udphdr *)(packet_snd+sizeof(struct ether_header)+sizeof(struct iphdr));
@@ -25,6 +26,7 @@ int main()
 	struct iphdr *ipheader_rcv = (struct iphdr *)(packet_rcv+sizeof(struct ether_header));
 	struct udphdr *udpheader_rcv = (struct udphdr *)(packet_rcv+sizeof(struct ether_header)+sizeof(struct iphdr));
 	payload_rcv = packet_rcv+sizeof(struct ether_header)+sizeof(struct iphdr)+sizeof(struct udphdr);
+	//заполнение загаловка канального уровня
 	sscanf(SERVER_MAC, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &ethheader_snd->ether_dhost[0], &ethheader_snd->ether_dhost[1], &ethheader_snd->ether_dhost[2], &ethheader_snd->ether_dhost[3], &ethheader_snd->ether_dhost[4], &ethheader_snd->ether_dhost[5]);
 	sscanf(CLIENT_MAC, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &ethheader_snd->ether_shost[0], &ethheader_snd->ether_shost[1], &ethheader_snd->ether_shost[2], &ethheader_snd->ether_shost[3], &ethheader_snd->ether_shost[4], &ethheader_snd->ether_shost[5]);
 	ethheader_snd->ether_type = htons(ETH_P_IP);
@@ -35,6 +37,7 @@ int main()
 	serv.sll_pkttype = PACKET_HOST;
 	serv.sll_halen = 6;
 	strncpy(serv.sll_addr, ethheader_snd->ether_dhost, 6);
+	//заполнение загаловка сетевого уровня
 	ipheader_snd->ihl=5;
 	ipheader_snd->version=4;
 	ipheader_snd->tos=0;
@@ -48,11 +51,13 @@ int main()
 	ipheader_snd->daddr=inet_addr(SERVER_IP);
 	ipheader_snd->check=0;
 	ipheader_snd->check=checksum((unsigned short *)ipheader_snd, sizeof(struct iphdr));
+	//заполнение загаловка транспортного уровня
 	udpheader_snd->source=htons(CLIENT_PORT);
 	udpheader_snd->dest=htons(SERVER_PORT);
 	udpheader_snd->len=htons(sizeof(struct udphdr)+PAYLOAD_SIZE);
 	udpheader_snd->check=0;
 	strncpy(payload_snd, "Connect", PACKET_SIZE);
+	//отправка первичного пакета серверу
 	ret = sendto(serverfd, packet_snd, PACKET_SIZE, 0, (struct sockaddr *) &serv, sizeof(serv));
 	if(ret<0)
 	{
@@ -63,6 +68,7 @@ int main()
 	len=sizeof(struct sockaddr_in);
 	while(1)
 	{
+		//получение нового порта для обмена сообщениями
 		memset(packet_rcv, 0 , PACKET_SIZE);
 		ret = recvfrom(serverfd, &packet_rcv, PACKET_SIZE, 0, (struct sockaddr*)&cli, (unsigned int*) &len);
 		if(ret<0)
@@ -78,12 +84,14 @@ int main()
 			break;
 		}
 	}
+	//открытие нового сокета
 	serverfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if(serverfd<0)
 	{
 		perror("Socket create: ");
 		exit(1);
 	}
+	//переопределение порта транспортного уровня
 	udpheader_snd->dest=htons(port);
 	udpheader_snd->len=htons(sizeof(struct udphdr)+PAYLOAD_SIZE);
 	while(1)
@@ -101,6 +109,7 @@ int main()
 			break;
 		memset(&cli, 0, sizeof(cli));
 		len=sizeof(struct sockaddr_in);
+		//обмен сообщениями с сервером
 		while(1)
 		{
 			memset(packet_rcv, 0 , PACKET_SIZE);
