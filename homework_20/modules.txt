@@ -1,0 +1,119 @@
+создаем простой модуль
+
+nano test1.c
+
+cat test1.c
+#include <linux/module.h>
+#include <linux/kernel.h>
+
+int init_module(void)
+{
+	pr_info("Test module loaded");
+	return 0;
+}
+void cleanup_module(void)
+{
+	pr_info("Tesn module unloaded");
+}
+
+MODULE_LICENSE("GPL");
+
+
+nano Makefile
+
+cat Makefile 
+obj-m += test1.o
+
+all:
+	make -C /lib/modules/5.4.0-216-generic/build M=$(PWD) modules
+clean:
+	make -C /lib/modules/5.4.0-216-generic/build M=$(PWD) clean
+
+make
+sudo insmod test1.ko
+
+------------------------------------------------------------------------
+
+модуль для работы с файлами устройств
+
+nano test2.c
+
+cat test2.c 
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/fs.h>
+#include <linux/rwlock.h>
+#include <linux/uaccess.h>
+
+static int major = 0;
+static rwlock_t lock;
+static char string[20] = "Hello!\n\0";
+
+ssize_t test_read(struct file *fd, char __user *buff, size_t size, loff_t *off)
+{
+	size_t rc;
+	read_lock(&lock);
+	rc=simple_read_from_buffer(buff, size, off, string, 20);
+	read_unlock(&lock);
+	return rc;
+}
+ 
+ssize_t test_write(struct file *fd, const char __user *buff, size_t size, loff_t *off)
+{
+	size_t rc=0;
+	if(size>20)
+		return -EINVAL;
+	write_lock(&lock);
+	rc=simple_write_to_buffer(string, 20, off, buff, size);
+	write_unlock(&lock);
+	return rc;
+}
+
+static struct file_operations fops = {
+	.owner=THIS_MODULE,
+	.read=test_read,
+	.write=test_write,
+};
+
+int init_module(void)
+{
+	pr_info("Test module is loaded");
+	rwlock_init(&lock);
+	major=register_chrdev(major, "test2", &fops);
+	if(major<0)
+		return major;
+	pr_info("Major number is %d.\n", major);
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	unregister_chrdev(major, "test2");
+}
+
+MODULE_LICENSE("GPL");
+
+nano Makefile 
+
+cat Makefile 
+obj-m += test2.o
+
+all:
+	make -C /lib/modules/5.4.0-216-generic/build M=$(PWD) modules
+clean:
+	make -C /lib/modules/5.4.0-216-generic/build M=$(PWD) clean
+
+make
+
+модулю был присвоен мажорный номер 240
+
+cd /dev
+sudo mknod test2 c 240 0
+sudo chmod +rw test2 
+cat test2
+Hello!
+echo "HEY BRO!" > test2
+cat test2
+HEY BRO!
+
+------------------------------------------------------------------------
